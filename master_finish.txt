@@ -1,0 +1,1093 @@
+
+PROCESSOR 16F877A
+INCLUDE "P16F877A.INC"	
+__CONFIG 0x3731
+
+
+
+Char EQU 0x25
+DelayCount EQU 0x31
+
+; Define a register to store the value of num
+blink3 EQU 0x20 ; Choose an available register, adjust as needed
+BlinkCount  EQU 0x32 ; Counter for blink iterations
+digit_flag  EQU 0x34 ; Counter for blink iterations
+
+
+num_tenth_digit EQU 0x26
+num_unit_digit  EQU 0x35 ; Counter for blink iterations
+num EQU 0x36
+temp EQU 0x37
+
+num2_tenth_digit EQU 0x38
+num2_unit_digit EQU 0x39
+finish_getting EQU 0x56 
+
+temp_code EQU 0x40
+code_to_send EQU 0x41
+
+
+debugg EQU 0x43
+
+ 
+ counter EQU 0x44
+ multiplicand EQU 0x45
+ result_high  EQU 0x46
+ result_low   EQU 0x47
+ result      EQU 0x48
+ 
+ multi_flag EQU 0x49
+ 
+high_nibble   EQU 0x50
+low_nibble    EQU 0x51
+full_byte     EQU 0x52
+
+most_significant_digits_slave EQU 0x53
+low_significant_digits_slave  EQU 0x54
+
+most_significant_digits_master  EQU 0x58
+ low_significant_digits_master   EQU 0x59
+ 
+
+ ; Define register aliases
+high_byte   EQU     0x60     ; Assume 0x01 is stored in this register
+low_byte    EQU     0x61     ; Assume 0x5F is stored in this register
+multiplier  EQU     0x62     ; Multiplier value (10 in decimal)
+result_low_2  EQU     0x63     ; Lower byte of the result
+result_high_2 EQU     0x64     ; Higher byte of the result
+temp2        EQU     0x65     ; Temporary storage
+ 
+
+; The instructions should start from here
+ORG 0x00
+GOTO init
+
+
+ORG 0x04
+GOTO ISR
+
+
+
+
+;-------------------------------------------start init --------------------------------------------------------
+  init:
+		BANKSEL TRISD
+		CLRF TRISD   ;define Port d as output
+		
+		BANKSEL PORTD
+		
+		goto start2 
+		
+		MOVLW 'A'
+		MOVWF Char ; for displying on screen
+		
+		MOVLW 0x30
+		MOVWF num_tenth_digit
+		
+		MOVLW 0x30
+		MOVWF num_unit_digit
+		
+		
+		MOVLW 0x30
+		MOVWF num
+		
+		MOVLW 0x03
+		MOVWF blink3
+		
+		
+		MOVLW 0x00
+		MOVWF digit_flag
+		
+		
+		
+		GOTO start
+
+;-------------------------------------------end init -------------------------------------------------------------
+
+
+
+;-------------------------------------------- when the button is clicked ------------------------------------------------
+ISR:
+		BANKSEL INTCON
+		BCF INTCON, INTF
+		BSF INTCON, INTE
+		
+		
+		
+; TASK
+    
+
+    
+		 
+		 ;;;;;;;;;;;;;;;;;;;;;;;;;;Getting the first number;;;;;;;;;;;;;;;;;;;;
+		 
+		 BCF digit_flag,0   ; make it to the first digit .
+		 call get_number ; call the function to take the first tenth value 
+		 MOVF temp, W ; moving the return value from the function to tenth
+		 MOVWF num_tenth_digit
+		 
+		 BSF digit_flag,0 ; make the flag for second digit(unit)
+		 BCF finish_getting, 0 ; rest flag to reuse the function 
+		 call get_number
+		 MOVF temp, W ; moving the return value from the function to unit digit 
+		 MOVWF num_unit_digit
+		 
+		 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+		 
+		
+		 
+		; send data for num one . ;;;;;;;;;;;;
+		 
+		  MOVF  num_tenth_digit, W  
+		 ANDLW   0x0F  ; removing the num 3 from hex value of the number 
+		 MOVWF code_to_send ; save the value of the number without 3.
+		 
+		 SWAPF code_to_send
+		 
+		 MOVF  num_unit_digit, W  
+		 ANDLW   0x0F  ; removing the num 3 from hex value of the number 
+		 
+		 IORWF code_to_send; the number in tenth and units to send.	
+		 
+		 CALL SEND_DATA
+		 
+		  BANKSEL PORTB
+	          BCF PORTB,1 ; make the slave waiting.  
+
+ 
+		MOVLW	D'5'	
+	        CALL delayXsec   
+		call display_number_2  ; Printing the second num on LCD. 
+		
+		
+		;;;;;;;;;;;;;;;;;;;;;;;;;;Getting the second number;;;;;;;;;;;;;;;;;;;;
+		 
+		 BCF digit_flag,0   ; make it to the first digit .
+		 BCF finish_getting, 0 ; rest flag to reuse the function 
+		 call get_number ; call the function to take the first tenth value 
+		 MOVF temp, W ; moving the return value from the function to tenth
+		 MOVWF num2_tenth_digit
+		 
+		 BSF digit_flag,0 ; make the flag for second digit(unit)
+		 BCF finish_getting, 0 ; rest flag to reuse the function 
+		 call get_number
+		 MOVF temp, W ; moving the return value from the function to unit digit 
+		 MOVWF num2_unit_digit
+		 
+		 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+		 
+		  		 
+		 ;;;;;;;;;;;;;;;;;;;;;;;Sending the unit digit second number  ;;;;;;;;;;;;;;;
+		 
+		 BSF multi_flag, 0 ; make the multiplication function work while waiting the slave to finish
+		 
+		 MOVF  num2_unit_digit, W  
+		 MOVWF code_to_send
+		 CALL SEND_DATA
+		
+		 
+		
+		 
+		  BANKSEL PORTB
+	          BCF PORTB,1 ; make the slave waiting.  
+
+		 
+		 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		 
+		 wait_until_values_come_from_slave_most_significat:
+		 
+		 
+		   MOVLW  D'10'	; delay 2 seconds , important for synchronization between master and slave
+	           CALL delayXsec   
+		   
+		   
+		   BANKSEL PORTB
+		   
+		   BTFSS PORTB,2 ; dose the slave want to send the data ? 
+		   call RECEIVE_DATA ; yes go recive
+		   
+		   BTFSS PORTB,2 ; dose the slave want to send the data ? 
+		     goto back1
+		   
+		   
+		 
+		      
+		 goto wait_until_values_come_from_slave_most_significat
+		 
+		 back1: 
+		 
+		 MOVF full_byte ,w 
+		 MOVWF most_significant_digits_slave
+		 
+		 
+		  ; recive the low bit from slave. 
+		  
+		  wait_values_come_from_slave_low_significat:
+		 
+		   MOVLW  D'10'	; delay 2 seconds , important for synchronization between master and slave
+	           CALL delayXsec   
+		   
+		   BANKSEL PORTB
+		   
+		   BTFSS PORTB,2 ; dose the slave want to send the data ?  
+		   call RECEIVE_DATA ; yes go recive
+		   
+		   BTFSS PORTB,2 ; dose the slave want to send the data ?  
+		      goto back2
+		    
+		    
+		 goto wait_values_come_from_slave_low_significat
+		 
+		 back2: 
+		 
+		 MOVF full_byte ,w 
+		 MOVWF low_significant_digits_slave
+		 
+		 
+		 ; multiply value of master "tenthpart digit * num1 *10 
+		 
+		
+		  MOVF most_significant_digits_master ,W 
+		  MOVWF  high_byte ; USED IN MULIT  HEX BY 10 FUNCTION 
+		  
+		   MOVF low_significant_digits_master ,W 
+		  MOVWF  low_byte ; USED IN MULIT  HEX BY 10 FUNCTION 
+		  
+		  call multi_hex_by_10
+		  
+		  ; getting the values after * by 10 
+		  MOVF high_byte ,w 
+		  MOVWF most_significant_digits_master
+		  
+		   MOVF low_byte ,w 
+		  MOVWF low_significant_digits_master
+		  
+		  
+		 call print_equal ; this print "=" 
+		 
+; END TASK
+
+
+		BANKSEL INTCON
+		BSF INTCON, INTE
+		
+		BANKSEL PORTD
+
+		retfie
+
+
+;-----------------------------------------------release the button ----------------------------------------------------------
+
+
+
+INCLUDE "LCDIS_PORTD.INC" ; To USE LCD ON PORT D
+
+
+
+
+; ----------------------------------------------- main start ---------------------------------------------------------------
+start:
+
+		CALL inid   ;initialize LCD
+
+		MOVLW D'3'
+  
+	    MOVWF BlinkCount ; Initialize blink count to 3
+		   
+		
+
+; -------------------------------blinking effect start --------------------------------
+
+	
+	    ;BlinkLoop:    
+				    ;CALL ClearLCD       ; Clear the LCD
+					;MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
+				    ;CALL delayXsec      ; Wait for 1 second
+					;CALL printWelcome ; Display the welcome and multiplication messages
+					;MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
+					;CALL delayXsec      ; Wait for 1 second
+					;DECFSZ BlinkCount, F
+				    ;GOTO BlinkLoop
+		
+				    ;CALL ClearLCD       ; Clear the LCD for number 1
+				  
+			
+		
+; -------------------------------blinking effect end ------------------------------------		
+
+	
+		
+
+
+		;Print number 1 then on the second row display 0.;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+		CALL printNumber1   
+		
+		BCF 	Select, RS
+		MOVLW 	0xC0 ; second row
+		CALL 	send
+		
+		MOVLW '_'  ; 
+		BSF Select, RS
+		CALL send
+
+
+		;Print number 1 end ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		
+		
+		;I use RB0 as interrupt
+		
+		BANKSEL TRISB
+		BSF TRISB, TRISB0  ;define B0 in port B as input pin
+		
+		MOVLW   b'11111101' ; RB1 as output for signling the slave (co processer )  and RB2 is input for get signa from slave.
+		ANDWF   TRISB, F
+		
+		BANKSEL INTCON     
+		BSF INTCON, GIE    ;enable interrupt
+		BSF INTCON, INTE    ;enable RB0 interrupt
+		
+		
+		
+		
+		complete_with_result
+		
+		loop:
+		
+		
+		
+		
+		;MOVFW Char
+		;BSF Select, RS
+		;CALL send
+
+
+		
+		GOTO loop
+
+
+;-------------------------------------------------------------------------- main end ----------------------------------------------------------
+
+
+
+; ----------------------------------delay function ------------------------
+
+
+delayXsec:
+    	MOVWF DelayCount
+
+delayloop:
+	          BTFSC INTCON, INTF ; IS THE BUTTON IS CLICKE BETWEEN THE TWO SECONDS? 
+	          RETURN ; YES! GO BACK 
+		  
+		  MOVLW D'200'
+		  CALL xms
+		  DECFSZ  DelayCount,F
+		  GOTO delayloop
+		  RETURN
+
+; ----------------------------------delay function end  ------------------------
+
+
+
+
+;--------------------------------------------------------------
+;	to reset num when it becomes 9
+;	
+;--------------------------------------------------------------
+rest_digit:
+
+MOVLW 0x30
+MOVWF num
+GOTO back
+
+
+RETURN
+
+;--------------------------------------------------------------
+;	some delay to determine the first number (if the interrupt is 4 second then it is accepted as number 1
+;	
+;--------------------------------------------------------------
+
+
+
+
+
+ClearLCD:
+	    BCF Select, RS ; Deselect the data register.
+	    MOVLW 0x01 ; Command to move cursor to second row
+	    CALL send
+	    RETURN
+
+
+
+
+
+first_digit_set_curser: ; Branch to the first_digit_set_curser label if MY_FLAG is clear
+		
+			; Move to the second row at position 0xC0
+			BCF 	Select, RS
+			MOVLW 	0xC0 ;cursor
+			CALL 	send
+			
+			GOTO cursor_tenth_digit
+			
+			RETURN
+			
+			
+			
+check_digit_flag:
+		
+		
+		    BTFSS digit_flag,0 ; is we are in the digit 1 ? 
+		    GOTO tenth_digit ; Yes! so go to the tenth digit.
+
+		    GOTO unit_digit ; No ! so go to the unit digit (second digit )  .
+
+
+            RETURN
+
+
+tenth_digit:
+ 		  
+		     BSF finish_getting ,0 
+		     
+		     MOVLW '_'
+		     BSF Select, RS
+		     CALL send
+		
+		     BANKSEL PORTD
+		
+		     MOVLW	D'15'	
+		     CALL delayXsec
+		
+		     MOVF num, W
+		     MOVWF temp
+		    
+		     MOVLW 0x30
+		     MOVWF num 
+		     
+		     GOTO back
+			
+			 
+	    
+unit_digit:
+
+			BSF finish_getting ,0 
+			
+			CALL ClearLCD       ; Clear the LCD
+			
+			BANKSEL PORTD
+			
+			
+			MOVLW	D'5'	
+			CALL delayXsec
+			
+			
+			; To check if the flag is cleared
+			;btfsc number_2, 0 ; Bit Test File and Skip if Clear
+			;goto print_equal        ; Branch to the first_digit_set_curser label if MY_FLAG is clear
+			
+			
+			
+			MOVF num, W
+		        MOVWF temp
+		    
+			
+		        MOVLW 0x30			
+			MOVWF num ; return the value for call 
+			 
+			GOTO back
+
+		
+
+			
+get_number:
+
+		BANKSEL INTCON
+		BCF INTCON, INTF ; make the flag of the button is zero. 
+		
+		;;;;;;;;;;;;;;;;;;;;;;;;;;; For the place of curser on the LCD ;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
+		
+		btfss digit_flag, 0 ; is we are in the first digit  
+		goto first_digit_set_curser        ; yes ? go to second_column_curser which move the curser to the first column.  
+
+		
+	                         	; NO! mean move the curser to right to write the second digit (second column) . 
+
+		; Move to the second row at position 0xC0
+		BCF 	Select, RS
+		MOVLW 	0xC1 ;cursor to (second column)
+		CALL 	send     	  
+
+		cursor_tenth_digit:
+		
+		MOVfW num
+		BSF Select, RS
+	        CALL send
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		
+		
+		
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;get the value of the number ;;;;;;;;;;;;;;;;;;;;;;;;
+		
+		 ;delay for two second then check if interrupt occurs if not save the value and disable intterupt
+
+		MOVLW	D'10'	
+		CALL delayXsec
+	       
+		BTFSS INTCON, INTF  ; is the button clicked before 2 seconds ? 
+		GOTO check_digit_flag  ;  NO ! then jumb to check_digit_flag
+		
+		INCF num,F  ; Yes ! then increament the value of num and continue 
+	      
+	      
+		MOVLW 0x3A   ; Load the value "10" to be compared with (binary representation)
+		XORWF num, W       ; XOR the contents of W with the value in NUM and store the result in W
+
+		; Now, check if the result in W is zero (meaning the values were equal)
+		BTFSC STATUS, Z    ; Branch if Zero flag is set (W != 0)
+		GOTO rest_digit     ; Jump if the values are not equal
+	      
+	      ; Move to the second row at position 0xC0
+		 BCF 	Select, RS
+	         MOVLW 	0xC0
+		 CALL 	send
+	     
+	       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	       
+	       back:
+	       
+	       BTFSC finish_getting, 0 ; is we decide to choose this number ? 
+	       RETURN ; yes then give the number back the function call by w reg
+	       
+	       goto get_number ; No ! so go back to get number until you choose one.
+	       
+	       
+
+	       
+SEND_DATA:
+	  	 	  
+	  BANKSEL TRISC
+	  MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (1)
+	  MOVWF   TRISC
+	  
+	  BANKSEL PORTC
+	  
+	  ; Output the high nybble (3) to PORTC
+	  MOVF    code_to_send, W    ; Move temp_code back to W
+	  
+	  MOVWF debugg
+	   
+	  ANDLW   0xF0            ; Isolate the high nybble (now W = 0x30)
+	  
+	  MOVWF debugg
+	  
+	  MOVWF   PORTC           ; Output high nybble to PORTC
+	  
+	  BANKSEL PORTB
+	  BSF PORTB,1 ; signaling the slave. 
+	  
+	  MOVLW	D'5'	
+	  CALL delayXsec
+	
+	 
+	  BANKSEL PORTC
+	  
+	  MOVF    code_to_send, W    ; Move temp_code back to W
+	  
+	  ; Output the low nybble (1) to PORTC
+	  SWAPF   code_to_send           ; Swap nybbles (now W = 0x13)
+	  
+	  MOVF code_to_send ,w
+	  ANDLW   0xF0     
+	  ; Isolate the new high nybble, which is the original low nybble (now W = 0x10)
+	  MOVWF debugg
+	  MOVWF   PORTC           ; Output low nybble to PORTC
+	  
+	  wait_until_slave_done:
+	  
+	  btfsc multi_flag, 0  ; do we send the data of number 2 ? 
+	  call tenth_x_num1 ; yes then do multiplication of tenth part while waiting the slave.
+	  
+	  btfsc multi_flag, 0  ; do we send the data of number 2 ? 
+	  call save_data_of_tenth ; yes then do multiplication of tenth part while waiting the slave.
+	  
+	  btfss PORTB ,2 ; is the slave done ? 
+	  RETURN ; yes return back
+	  
+	
+	  
+	  goto wait_until_slave_done ; No! wait until it done.
+	  
+	  
+	  
+    RETURN	       
+
+    
+tenth_x_num1: 
+
+	    
+	     ;;;;;;;;;convert the value to hex ;;;;;;;;;;;;;
+			 
+			 
+			 movf num_tenth_digit,w 
+			 call funtion_to_get_value_of_hex
+			 movf temp , w 
+			 movwf num_tenth_digit
+			 
+			  movf num_unit_digit,w 
+			 call funtion_to_get_value_of_hex
+			 movf temp , w 
+			 movwf num_unit_digit
+			 
+			 
+			 movf num2_tenth_digit,w 
+			 call funtion_to_get_value_of_hex
+			 movf temp , w 
+			 movwf num2_tenth_digit
+			 
+			 
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		
+			  MOVLW 0x0A       ; Load constant 10 into W
+
+			 ; Perform the multiplication using a loop
+			  multiply_loop:
+			  ADDWF result, F ; Add num to the result
+
+			  ; Decrease the loop counter (you might need to adjust the count based on your specific requirements)
+			  DECFSZ num_tenth_digit, F   ; Decrease num and skip if zero
+			  GOTO multiply_loop ; Continue the loop if num is not zero
+			  
+			  movf num_unit_digit,w 
+			  
+			  ADDWF result , w 
+			  
+			  MOVWF result
+			  
+			 movf num2_tenth_digit , w 
+			 MOVWF counter    ; Move W to counter for loop control
+			 
+			 MOVF  result, W  
+			 MOVWF multiplicand ; Store the multiplicand
+			  
+	               call multiply_loop2 ; first argument is counter "3" x "num" return in hex 
+		    
+		
+		RETURN
+
+		
+save_data_of_tenth:
+		    MOVF result_low ,w 
+		    MOVWF low_significant_digits_master
+		    
+		    MOVF result_high ,w 
+		    MOVWF most_significant_digits_master
+		    BCF multi_flag, 0  ; rest the flag
+		    
+		  
+		     
+
+multiply_loop2:
+	     ; Add multiplicand to result_low, consider carry to result_high
+	     MOVF multiplicand, W    ; Get multiplicand
+	     ADDWF result_low, F     ; Add to result_low
+	     BTFSC STATUS, C         ; Check if there was a carry
+	     INCF result_high, F     ; Increment result_high if carry occurred
+
+	     DECF counter, F         ; Decrement the counter
+	     MOVF counter, W         ; Check if counter is zero
+	     BZ end_multiply         ; If zero, multiplication is done
+	     GOTO multiply_loop2      ; Else, continue loop
+
+end_multiply:
+	       RETURN 
+
+
+multi_hex_by_10:
+     ; Initialize high_byte and low_byte with the value 0x015F
+    
+    MOVWF   high_byte
+    MOVWF   low_byte
+
+    ; Clear result registers
+    CLRF    result_low
+    CLRF    result_high
+
+    ; Set multiplier (10) in the temp register
+    MOVLW   0x0A
+    MOVWF   temp
+
+    ; Multiply
+    MOVF    temp, W        ; Move the multiplier to W
+    MOVWF   counter              ; Initialize the counter with the multiplier
+
+MULTIPLY_LOOP:
+    MOVF    low_byte, W  ; Move the low byte of multiplicand to W
+    ADDWF   result_low_2, F       ; Add it to the low byte of the product
+    BTFSC   STATUS, C            ; Check if there was a carry
+    INCF    result_high_2, F      ; If so, increment the high byte of the product
+
+    MOVF    high_byte, W ; Move the high byte of multiplicand to W
+    ADDWF   result_high_2, F      ; Add it to the high byte of the product
+
+    DECFSZ  counter, F           ; Decrement the counter
+    GOTO    MULTIPLY_LOOP        ; Repeat the loop if counter is not zero
+
+    ; The result is now in product_high:product_low
+  
+        return             ; Return from function
+	
+         
+
+ 
+	 
+RECEIVE_DATA:
+
+	     BANKSEL TRISC
+	     MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (1)
+	     MOVWF   TRISC
+	  
+	     BANKSEL PORTC
+             BANKSEL PORTC
+	     MOVF    PORTC, W       ; Read PORTC
+	 
+	     ; 0x6E
+	     ; 0x06 w
+	     ; 0x06
+	     ; 0x60
+	     
+	     
+	     MOVWF   high_nibble
+	     MOVF high_nibble ,w
+	     ANDLW 0x0F
+	     
+	     MOVWF high_nibble
+	     SWAPF high_nibble
+	      
+	  	     		     
+	     	     	  	    				    
+	      MOVLW	D'5'	
+	      CALL delayXsec
+	     
+	      MOVLW	D'5'	
+	      CALL delayXsec
+	
+	      MOVLW	D'5'	
+	      CALL delayXsec
+	
+	
+	     ; Receive the low nibble
+	     
+	     MOVF    PORTC, W       ; Read PORTC again
+	     
+	     ;0x0E
+	     
+	     MOVWF   low_nibble
+	     MOVF low_nibble ,w
+	     
+	     ANDLW 0x0F
+	     
+	     MOVWF   low_nibble    ; Save the high nibble
+	     
+	     IORWF high_nibble ; 6E
+	     
+	     MOVF high_nibble ,w
+	     
+	     movwf full_byte
+	    
+	     
+	   BANKSEL PORTB 
+	   BSF  PORTB ,1  
+	  
+	   
+	   MOVLW	D'2'	
+	    CALL delayXsec
+	   
+	   BCF  PORTB ,1   ; make the slave check again for any future signal.
+	    
+	  	  	       
+    RETURN
+	     
+	    
+	
+
+  
+
+    
+    
+funtion_to_get_value_of_hex: 
+			     MOVWF temp
+			     ANDLW 0x0F
+			     MOVWF temp 
+			     RETURN
+			         
+	 
+ 
+ 
+ 
+display_number_2:
+				
+				
+				
+				MOVLW 'X'
+			        BSF Select, RS
+			        CALL send
+				
+			      	MOVLW	D'10'	
+		                CALL delayXsec
+						
+				CALL ClearLCD       ; Clear the LCD
+				
+				CALL printNumber2   ;print NUMBER1 to LCD
+				
+			        BCF Select, RS
+				MOVLW 	0xC0 ; second row
+				CALL 	send
+				  
+				MOVLW '_'  ; 
+				BSF Select, RS
+			        CALL send
+				
+				loop_until_click_button:
+				
+				BTFSC INTCON, INTF ; IS THE BUTTON IS CLICKED NOW ?   
+	                        RETURN ; YES! GO BACK 
+				
+				goto loop_until_click_button ; NO! then wait until it clicked.
+				
+				 
+				
+			
+				
+
+
+
+
+
+;PRINT AREA ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; ----------------------------------- print welcome -----------------------------
+ printWelcome:
+  
+				; Print "WELCOME" on the first row
+				MOVLW 'W'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'E'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'L'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'C'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'O'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'M'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'E'
+				BSF Select, RS
+				CALL send
+				
+				
+				MOVLW 0x20
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'T'
+				BSF Select, RS
+				CALL send
+				
+				
+				MOVLW 'O'
+				BSF Select, RS
+				CALL send
+				
+				
+				; Move to the second row at position 0xC0
+				BCF 	Select, RS
+				MOVLW 	0xC0
+				CALL 	send
+				
+				; Print "MULTIPLICATION" on the second row
+				MOVLW 'M'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'U'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'L'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'T'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'I'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'P'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'L'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'I'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'C'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'A'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'T'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'I'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'O'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'N'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 0x10
+				CALL delayXsec
+
+
+				RETURN
+; ----------------------------------- print welcom end -----------------------------
+
+
+; -----------------------------------  Print Number1   ------------------------------
+printNumber1:
+			
+			MOVLW 'N'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'U'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'M'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'B'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'E'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'R'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 0x20
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 0x31
+			BSF Select, RS
+			CALL send
+
+
+RETURN
+
+; -----------------------------------  Print end   ----------------------------------
+
+
+; -----------------------------------  Print Number2   ------------------------------
+printNumber2:
+
+				MOVLW 'N'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'U'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'M'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'B'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'E'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 'R'
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 0x20
+				BSF Select, RS
+				CALL send
+				
+				MOVLW 0x32
+				BSF Select, RS
+				CALL send
+
+
+RETURN
+
+; -----------------------------------  Print Number2 end   ------------------------------
+
+print_equal:
+
+		    MOVLW	D'10'	 ; delay 2 seconds
+		    CALL delayXsec 
+			
+			CALL ClearLCD       ; Clear the LCD
+
+			MOVLW 0x3D          ; ascii for "=" char
+			BSF Select, RS
+			CALL send
+			
+
+		        MOVLW	D'10'	; delay 2 seconds
+			CALL delayXsec   
+
+			CALL ClearLCD       ; Clear the LCD
+
+			RETURN  ; return to the main 
+
+
+
+END
+
+
