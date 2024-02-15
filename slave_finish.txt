@@ -352,18 +352,8 @@ end_multiply:
 	    
 	    
 	    ;; getting the most high two digits
-	    movf result_low, W 
-	    ANDLW   0xF0 
-	    MOVWF code_to_send
-	    SWAPF code_to_send
-	    SWAPF result_high 
-	    
-	    movf code_to_send, W 
-	    IORWF result_high ;
-	    
-	    movf result_high ,w 	  
-	    MOVWF code_to_send
-	    
+	    movf result_high, W 
+	    MOVWF code_to_send	  
 	    call SEND_DATA
 	    CALL    Delay1Sec 
 	    CALL    Delay1Sec
@@ -373,7 +363,6 @@ end_multiply:
 	  
 	    
 	    movf result_low, W 
-	    ANDLW   0x0F 
 	    MOVWF code_to_send	    
 	    call SEND_DATA
 	    CALL    Delay1Sec 

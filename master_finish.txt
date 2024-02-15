@@ -56,6 +56,9 @@ multiplier  EQU     0x62     ; Multiplier value (10 in decimal)
 result_low_2  EQU     0x63     ; Lower byte of the result
 result_high_2 EQU     0x64     ; Higher byte of the result
 temp2        EQU     0x65     ; Temporary storage
+
+final_result_high EQU     0x66
+final_result_low  EQU     0x67
  
 
 ; The instructions should start from here
@@ -76,7 +79,6 @@ GOTO ISR
 		
 		BANKSEL PORTD
 		
-		goto start2 
 		
 		MOVLW 'A'
 		MOVWF Char ; for displying on screen
@@ -244,8 +246,12 @@ ISR:
 		 MOVWF low_significant_digits_slave
 		 
 		 
+		 
+		 
+		 
 		 ; multiply value of master "tenthpart digit * num1 *10 
 		 
+		  
 		
 		  MOVF most_significant_digits_master ,W 
 		  MOVWF  high_byte ; USED IN MULIT  HEX BY 10 FUNCTION 
@@ -256,12 +262,15 @@ ISR:
 		  call multi_hex_by_10
 		  
 		  ; getting the values after * by 10 
-		  MOVF high_byte ,w 
+		  MOVF result_high_2 ,w 
 		  MOVWF most_significant_digits_master
 		  
-		   MOVF low_byte ,w 
+		   MOVF result_low_2 ,w 
 		  MOVWF low_significant_digits_master
 		  
+		  CALL    AddHexValues
+		  
+
 		  
 		 call print_equal ; this print "=" 
 		 
@@ -706,15 +715,10 @@ end_multiply:
 	       RETURN 
 
 
-multi_hex_by_10:
-     ; Initialize high_byte and low_byte with the value 0x015F
-    
-    MOVWF   high_byte
-    MOVWF   low_byte
-
+multi_hex_by_10:    
     ; Clear result registers
-    CLRF    result_low
-    CLRF    result_high
+    CLRF    result_low_2
+    CLRF    result_high_2
 
     ; Set multiplier (10) in the temp register
     MOVLW   0x0A
@@ -742,7 +746,20 @@ MULTIPLY_LOOP:
 	
          
 
- 
+AddHexValues:
+    MOVF    low_significant_digits_slave , W      ; Get second low byte
+    ADDWF   low_significant_digits_master, W       ; Add to first low byte
+    MOVWF   final_result_low         ; Store result in result_low
+    BTFSC   STATUS, C          ; Check for carry from low byte addition
+    INCF    most_significant_digits_slave, F     ; Increment second high byte if carry occurred
+
+    MOVF    most_significant_digits_slave, W     ; Get second high byte
+    ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
+    MOVWF   final_result_high        ; Store result in result_high
+    BTFSC   STATUS, C          ; Check for carry from high byte addition
+    
+    RETURN
+    
 	 
 RECEIVE_DATA:
 
