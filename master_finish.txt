@@ -741,8 +741,13 @@ tenth_x_num1:
 			 
 		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 		
+			   MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
+			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+			   goto it_zero
+		
 			  MOVLW 0x0A       ; Load constant 10 into W
-
+			  
+			
 			 ; Perform the multiplication using a loop
 			  multiply_loop:
 			  ADDWF result, F ; Add num to the result
@@ -756,7 +761,9 @@ tenth_x_num1:
 			  ADDWF result , w 
 			  
 			  MOVWF result
-			  
+			
+	
+		it_zero: 
 			 movf num2_tenth_digit , w 
 			 MOVWF counter    ; Move W to counter for loop control
 			 
@@ -781,6 +788,11 @@ save_data_of_tenth:
 		     
 
 multiply_loop2:
+
+	    MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
+	    BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+	    goto counter0 
+			   
 	     ; Add multiplicand to result_low, consider carry to result_high
 	     MOVF multiplicand, W    ; Get multiplicand
 	     ADDWF result_low, F     ; Add to result_low
@@ -795,6 +807,12 @@ multiply_loop2:
 end_multiply:
 	       RETURN 
 
+	       
+counter0:
+	 clrf result_low
+	 clrf result_high
+	 goto end_multiply
+	 
 
 multi_hex_by_10:    
     ; Clear result registers
@@ -837,8 +855,7 @@ AddHexValues:
     MOVF    most_significant_digits_slave, W     ; Get second high byte
     ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
     MOVWF   final_result_high        ; Store result in result_high
-    BTFSC   STATUS, C          ; Check for carry from high byte addition
-    
+  
     RETURN
     
 	 

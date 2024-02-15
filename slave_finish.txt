@@ -248,7 +248,7 @@ RECEIVE_DATA2:
  	    
 	     call printNumber2
 	     
-	     
+	   
 	     
 	     CALL    Delay1Sec
 	     
@@ -298,8 +298,17 @@ choose_which_recive:
 		      
 
 
+
+		      
+		      
 send_to_multiplicaition:
 				
+			
+			
+			  MOVF    num1_unit_hex, W  ; Move the value of num2_tenth_digit into the W register
+			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+			  goto it_zero
+			   
 			  MOVLW 0x0A       ; Load constant 10 into W
 
 			 ; Perform the multiplication using a loop
@@ -316,6 +325,9 @@ send_to_multiplicaition:
 			  
 			  MOVWF result
 	
+			it_zero:
+			
+	
 			 movf unit_digit_number2_in_hex , w 
 			 MOVWF counter    ; Move W to counter for loop control
 			 
@@ -330,6 +342,11 @@ send_to_multiplicaition:
 
 
 multiply_loop2:
+
+	  MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
+	  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+	  goto counter0 
+			   
     ; Add multiplicand to result_low, consider carry to result_high
     MOVF multiplicand, W    ; Get multiplicand
     ADDWF result_low, F     ; Add to result_low
@@ -340,6 +357,7 @@ multiply_loop2:
     MOVF counter, W         ; Check if counter is zero
     BZ end_multiply         ; If zero, multiplication is done
     GOTO multiply_loop2      ; Else, continue loop
+    
 
 end_multiply:
 
@@ -376,7 +394,10 @@ end_multiply:
     
 
   
-
+counter0:
+	 clrf result_low
+	 clrf result_high
+	 goto end_multiply
 
 
 
