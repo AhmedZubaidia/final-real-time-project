@@ -8,33 +8,34 @@ __CONFIG 0x3731
 
 Char EQU 0x25
 DelayCount EQU 0x30 ; General-purpose register for delay count
-datarecv EQU 0x31
 
 
-high_nibble   EQU 0x40
-low_nibble    EQU 0x41
-full_byte     EQU 0x42
-debugg2 	EQU 0x43
-value30        EQU 0x44	
-flag_num1_done  EQU 0x45
+high_nibble   EQU 0x40 ; used in send and recive 
+low_nibble    EQU 0x41  ; used in send and recive 
+full_byte     EQU 0x42  ; used in send and recive 
 
-num1_tenth_hex EQU 0x46
-num1_unit_hex EQU 0x49
 
-unit_digit_number2_in_hex EQU 0x47
+
+flag_num1_done  EQU 0x45 ; uesd in recive 
+
+
+num1_tenth_hex EQU 0x46 ; value of hex of tenth of num 1
+num1_unit_hex EQU 0x49 ; same above 
+
+unit_digit_number2_in_hex EQU 0x47 ; unit two above .
  
- temp EQU 0x48 
+temp EQU 0x48 ; uesd in diffrent function 
  
- full_num_1_in_decimal EQU 0x50
- 
- counter EQU 0x51
- multiplicand EQU 0x52
- result_high  EQU 0x53
- result_low   EQU 0x54 
-  register    EQU 0x55
-  result      EQU 0x56
-  swap        EQU 0x57 
-code_to_send  EQU 0x58
+ counter EQU 0x51 ; used in multiplication 
+ multiplicand EQU 0x52 ; for multiplication function 
+ result_high  EQU 0x53 ; save the resutl of multiplication from unit digit with num1
+ result_low   EQU 0x54 ; save the resutl of multiplication from unit digit with num1
+  result      EQU 0x56 ; used in  multiplicatoin 
+  swap        EQU 0x57 ; used in diffrent function for high and low nibbles. 
+  
+code_to_send  EQU 0x58 ; used in send data.
+
+
 
 ; Begin the program at the reset vector.
 ORG 0x00
@@ -66,7 +67,7 @@ init:
 	
 	
     BANKSEL TRISB       ; Select bank for TRISB register
-    MOVLW   b'11111011' ; Set RB1 as input (1) and RB2 as output (0), leave others unchanged
+    MOVLW   b'11111011' ; Set RB1 defult (0 ) as input (1) and RB2 defult (1 ) as output (0), leave others unchanged
     ANDWF   TRISB, F    ; Apply changes to TRISB
     
  
@@ -502,7 +503,8 @@ printNumber1:
 			BCF 	Select, RS
 			MOVLW 	0xC0 ; second row
 			CALL 	send
-		
+			
+
 
 
 RETURN
@@ -546,6 +548,55 @@ printNumber2:
 			       BCF 	Select, RS
 			       MOVLW 	0xC0 ; second row
 			       CALL 	send
+			       
+			MOVLW 0x20
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'U'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'N'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'I'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'T'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 0x20
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'D'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'I'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'G'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'I'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'T'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 0x20
+			BSF Select, RS
+			CALL send
+			
 		
 
 

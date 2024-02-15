@@ -8,48 +8,54 @@ __CONFIG 0x3731
 Char EQU 0x20
 DelayCount EQU 0x21
 
-; Define a register to store the value of num
-blink3 EQU 0x22 ; Choose an available register, adjust as needed
+
+blink3 EQU 0x22 ; for blinking 
 BlinkCount  EQU 0x23 ; Counter for blink iterations
-digit_flag  EQU 0x24 ; Counter for blink iterations
+
+digit_flag  EQU 0x24 ; for getting number from user (choose the digit)
 
 
-num_tenth_digit EQU 0x25
-num_unit_digit  EQU 0x26 ; Counter for blink iterations
-num EQU 0x27
-temp EQU 0x28
+num_tenth_digit EQU 0x25 ; used in recive number from user
+num_unit_digit  EQU 0x26 ; used in recive number from user
 
-num2_tenth_digit EQU 0x29
-num2_unit_digit EQU 0x30
+num EQU 0x27 ; used recive number from user
+
+temp EQU 0x28 ; diffrent uses
+
+num2_tenth_digit EQU 0x29 ; same above
+num2_unit_digit EQU 0x30 ; samve above 
 
 
 digit1 EQU 0x31 ; Equivalent of 'first' in ASCII
-digit2 EQU 0x32 ; Equivalent of 'seond' in ASCII, assuming a typo in the original pattern
-digit3 EQU 0x33 ; Equivalent of 'third' in ASCII, adjusting based on pattern context
+digit2 EQU 0x32 ; Equivalent of 'seond' in ASCII
+digit3 EQU 0x33 ; Equivalent of 'third' in ASCII 
 digit4 EQU 0x34 ; Equivalent of 'fourth' in ASCII
 
 
- code_to_send EQU 0x41
- debugg EQU 0x42
- counter EQU 0x44
- multiplicand EQU 0x45
- result_high  EQU 0x46
- result_low   EQU 0x47
- result      EQU 0x48
- multi_flag EQU 0x49
+ code_to_send EQU 0x41 ; send recive purpose 
  
-high_nibble   EQU 0x50
-low_nibble    EQU 0x51
-full_byte     EQU 0x52
+ counter EQU 0x44 ; used in multiplication 
+ multiplicand EQU 0x45; used in multiplication 
  
-most_significant_digits_slave EQU 0x53
-low_significant_digits_slave  EQU 0x54
-
-finish_getting EQU 0x55
- temp_code EQU 0x56
+ result_high  EQU 0x46 ; get final result for tenth x num1
+ result_low   EQU 0x47 ; get final result for tenth x num1
+ result      EQU 0x48 ; ; used in multiplication 
  
-most_significant_digits_master  EQU 0x58
- low_significant_digits_master   EQU 0x59
+ multi_flag EQU 0x49 ; make the multiplication function work while waiting the slave to finish
+ 
+ 
+high_nibble   EQU 0x50 ; send recive purpose 
+low_nibble    EQU 0x51 ; send recive purpose 
+full_byte     EQU 0x52 ; send recive purpose 
+ 
+most_significant_digits_slave EQU 0x53 ; used to save multipcation  
+low_significant_digits_slave  EQU 0x54 ; used to save multipcation  
+ 
+finish_getting EQU 0x55 ; used in sycnro 
+ temp_code EQU 0x56 ;  used 
+ 
+most_significant_digits_master  EQU 0x58 ;   
+low_significant_digits_master   EQU 0x59 ;
  
 
  ; Define register aliases
@@ -60,8 +66,8 @@ result_low_2  EQU     0x63     ; Lower byte of the result
 result_high_2 EQU     0x64     ; Higher byte of the result
 temp2        EQU     0x65     ; Temporary storage
 
-final_result_high EQU     0x66
-final_result_low  EQU     0x67
+final_result_high EQU     0x66 ; final result of multiplication 
+final_result_low  EQU     0x67 ; final result of multiplication 
  
 
 ; The instructions should start from here
@@ -471,7 +477,7 @@ start:
 		BANKSEL TRISB
 		BSF TRISB, TRISB0  ;define B0 in port B as input pin
 		
-		MOVLW   b'11111101' ; RB1 as output for signling the slave (co processer )  and RB2 is input for get signa from slave.
+		MOVLW   b'11111101' ; RB1 as output it's (defult 0 ) for signling the slave (co processer )  and RB2 (it's defult 1) is input for get signa from slave.
 		ANDWF   TRISB, F
 		
 		BANKSEL INTCON     
@@ -857,7 +863,6 @@ tenth_x_num1:
 			  multiply_loop:
 			  ADDWF result, F ; Add num to the result
 
-			  ; Decrease the loop counter (you might need to adjust the count based on your specific requirements)
 			  DECFSZ num_tenth_digit, F   ; Decrease num and skip if zero
 			  GOTO multiply_loop ; Continue the loop if num is not zero
 			  
@@ -977,17 +982,17 @@ MULTIPLY_LOOP:
 ; here we find the final result of slave mutiplication and master , and store them in two regsieters final_result_high ,final_result_low. 
 
 AddHexValues:
-    MOVF    low_significant_digits_slave , W      ; Get second low byte
-    ADDWF   low_significant_digits_master, W       ; Add to first low byte
-    MOVWF   final_result_low         ; Store result in result_low
-    BTFSC   STATUS, C          ; Check for carry from low byte addition
-    INCF    most_significant_digits_slave, F     ; Increment second high byte if carry occurred
+	  MOVF    low_significant_digits_slave , W      ; Get second low byte
+	  ADDWF   low_significant_digits_master, W       ; Add to first low byte
+	  MOVWF   final_result_low         ; Store result in result_low
+	  BTFSC   STATUS, C          ; Check for carry from low byte addition
+	  INCF    most_significant_digits_slave, F     ; Increment second high byte if carry occurred
 
-    MOVF    most_significant_digits_slave, W     ; Get second high byte
-    ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
-    MOVWF   final_result_high        ; Store result in result_high
-  
-    RETURN
+	  MOVF    most_significant_digits_slave, W     ; Get second high byte
+	  ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
+	  MOVWF   final_result_high        ; Store result in result_high
+	
+	  RETURN
     
 
 
@@ -1045,7 +1050,7 @@ ConvertToASCII:
 		handel_AF:
 		movf temp,w 
 		
-		ADDLW   0x37                ; Adjust for ASCII 'A' to 'F' if necessary.
+		ADDLW   0x37               
 		
 	done: 	
 
