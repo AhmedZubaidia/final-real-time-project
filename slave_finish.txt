@@ -50,33 +50,34 @@ init:
     BSF INTCON, GIE ; Global interrupt enable
     BSF INTCON, INTE ; Enable RB0 interrupt
 
+    
     BANKSEL TRISD ;
     CLRF TRISD ; Set PORTD as output for LCD
 
     BANKSEL PORTD
     CLRF PORTD ; Clear PORTD
          ; Configure PORTC to receive data (if not already configured)
+	 
+	 
     BANKSEL TRISC
     MOVLW   0xF0    ; Set higher 4 bits as input (1) and lower 4 bits output (0)
     MOVWF   TRISC
 	; Set RB1 as input and RB2 as output on the slave
 	
+	
     BANKSEL TRISB       ; Select bank for TRISB register
     MOVLW   b'11111011' ; Set RB1 as input (1) and RB2 as output (0), leave others unchanged
     ANDWF   TRISB, F    ; Apply changes to TRISB
     
-    
+ 
     BANKSEL TRISD
-    CLRF TRISD   ;define Port d as output
-		
+    CLRF TRISD   ;define Port d as output	
     BANKSEL PORTD
 		
     MOVLW 'A'
     MOVWF Char ; for displying on screen
-    
     CALL inid   ;initialize LCD
 
-      
     GOTO start
 
 ; Interrupt service routine.
@@ -98,7 +99,7 @@ start:
 
 ; 1-second delay subroutine.
 Delay1Sec:
-    MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
+    MOVLW D'1' ; 5 x 200 ms = 1000 ms (1 seconds)
     MOVWF DelayCount
 DelayLoop:
     MOVLW D'200'
@@ -119,7 +120,9 @@ send_char:
     BCF Select, RS ; Deselect the data register.
     RETURN ; Return from subroutine.
 
-    
+; here we recive the first number in one shot. 
+    ; we can by this function recive the whole number in shot , no need to send it digit by digit. 
+     ;45  ->  34  35 
 RECEIVE_DATA:
 
              BANKSEL PORTC
@@ -136,7 +139,7 @@ RECEIVE_DATA:
 	     	  	     	     	        	  	    				    
 	     CALL    Delay1Sec      ; Placeholder for delay or synchronization
 	     CALL    Delay1Sec  
-	     CALL    Delay1Sec 
+	     ;CALL    Delay1Sec 
 	     ; Receive the low nibble
 	     MOVF    PORTC, W       ; Read PORTC again
 
@@ -149,8 +152,11 @@ RECEIVE_DATA:
 	     ADDLW 0x30
 	     MOVWF   low_nibble    ; Save the high nibble
 	     
+	     
 	  	    
-		    
+		       ;;;;;;;;;convert ascii code which we get to it's  value of hex ;;;;;;;;;;;;;
+			 
+			 ;exampe -> input  0x34  ->  output 0x04
 		    
 	     ;;;;;;;;;convert the num1_tenth to hex ;;;;;;;;;;;;;
 	     
@@ -188,7 +194,7 @@ RECEIVE_DATA:
 	   BCF  PORTB ,2 
 	   
 	   CALL    Delay1Sec 
-	   CALL    Delay1Sec
+	   ;CALL    Delay1Sec
 	   
 	   BANKSEL PORTB 
 	   BSF  PORTB ,2  ; return the value of RB2 to it defult to use it again .  
@@ -197,7 +203,9 @@ RECEIVE_DATA:
       
     RETURN
 	     
+	    
 
+; here we recive the second number, as acsii for unit digt , or any one digit.	     
 RECEIVE_DATA2:
 
              BANKSEL PORTC
@@ -214,7 +222,7 @@ RECEIVE_DATA2:
 	     	     	  	    				    
 	     CALL    Delay1Sec      ; Placeholder for delay or synchronization
 	     CALL    Delay1Sec  
-	     CALL    Delay1Sec 
+	    ; CALL    Delay1Sec 
 	     ; Receive the low nibble
 	     MOVF    PORTC, W       ; Read PORTC again
 

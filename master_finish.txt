@@ -119,10 +119,30 @@ ISR:
 		
 		
 		
+		
+goback_again: 		
+		
 ; TASK
     
 
     
+		 CALL ClearLCD       ; Clear the LCD
+		;Print number 1 then on the second row display 0.;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+		CALL printNumber1   
+		
+		BCF 	Select, RS
+		MOVLW 	0xC0 ; second row
+		CALL 	send
+		
+		MOVLW '_'  ; 
+		BSF Select, RS
+		CALL send
+
+
+		;Print number 1 end ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		
 		 
 		 ;;;;;;;;;;;;;;;;;;;;;;;;;;Getting the first number;;;;;;;;;;;;;;;;;;;;
 		 
@@ -130,6 +150,7 @@ ISR:
 		 call get_number ; call the function to take the first tenth value 
 		 MOVF temp, W ; moving the return value from the function to tenth
 		 MOVWF num_tenth_digit
+		 
 		 
 		 BSF digit_flag,0 ; make the flag for second digit(unit)
 		 BCF finish_getting, 0 ; rest flag to reuse the function 
@@ -202,7 +223,7 @@ ISR:
 		 wait_until_values_come_from_slave_most_significat:
 		 
 		 
-		   MOVLW  D'10'	; delay 2 seconds , important for synchronization between master and slave
+		   MOVLW  D'2'	; delay 2 seconds , important for synchronization between master and slave
 	           CALL delayXsec   
 		   
 		   
@@ -229,7 +250,7 @@ ISR:
 		  
 		  wait_values_come_from_slave_low_significat:
 		 
-		   MOVLW  D'10'	; delay 2 seconds , important for synchronization between master and slave
+		   MOVLW  D'2'	; delay 2 seconds , important for synchronization between master and slave
 	           CALL delayXsec   
 		   
 		   BANKSEL PORTB
@@ -352,9 +373,32 @@ ISR:
 		BSF Select, RS
 		CALL send
 		
-		
-		
-		
+	
+	 bcf INTCON, INTF ; rest button flag.
+	 
+	wait_until_go_back:
+
+	 BTFSC INTCON, INTF  ; is the button clicked after finishing? 
+	 goto go_to_reset ; then repeat the process go to step 2
+	 
+	 
+	 goto wait_until_go_back
+	  
+	go_to_reset: 
+	
+	 bcf finish_getting, 0 ; rest the flag to use it again in future . 
+	 bcf multi_flag ,0
+	 bcf temp_code, 0
+	 bcf temp2 ,0 
+	 bcf multiplicand ,0 
+	 bcf counter,0
+	 bcf digit_flag,0
+	 bcf DelayCount ,0
+	 bcf  temp_code ,0 
+
+	 goto goback_again
+	     
+ 	
 		
 
 		 
@@ -392,17 +436,17 @@ start:
 ; -------------------------------blinking effect start --------------------------------
 
 	
-	    ;BlinkLoop:    
-				    ;CALL ClearLCD       ; Clear the LCD
-					;MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
-				    ;CALL delayXsec      ; Wait for 1 second
-					;CALL printWelcome ; Display the welcome and multiplication messages
-					;MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
-					;CALL delayXsec      ; Wait for 1 second
-					;DECFSZ BlinkCount, F
-				    ;GOTO BlinkLoop
+	    BlinkLoop:    
+				    CALL ClearLCD       ; Clear the LCD
+				    MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
+				    CALL delayXsec      ; Wait for 1 second
+					CALL printWelcome ; Display the welcome and multiplication messages
+					MOVLW D'5' ; 5 x 200 ms = 1000 ms (1 seconds)
+					CALL delayXsec      ; Wait for 1 second
+					DECFSZ BlinkCount, F
+				    GOTO BlinkLoop
 		
-				    ;CALL ClearLCD       ; Clear the LCD for number 1
+				    CALL ClearLCD       ; Clear the LCD for number 1
 				  
 			
 		
@@ -410,12 +454,7 @@ start:
 
 	
 		
-
-
-		;Print number 1 then on the second row display 0.;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-		CALL printNumber1   
+	     CALL printNumber1   
 		
 		BCF 	Select, RS
 		MOVLW 	0xC0 ; second row
@@ -426,8 +465,6 @@ start:
 		CALL send
 
 
-		;Print number 1 end ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		
 		
 		;I use RB0 as interrupt
 		
@@ -449,12 +486,7 @@ start:
 		loop:
 		
 		
-		
-		
-		;MOVFW Char
-		;BSF Select, RS
-		;CALL send
-
+	
 
 		
 		GOTO loop
@@ -542,6 +574,7 @@ check_digit_flag:
             RETURN
 
 
+ ; here we approve the number of the tenth then return it back to the call function 	    
 tenth_digit:
  		  
 		     BSF finish_getting ,0 
@@ -562,23 +595,21 @@ tenth_digit:
 		     MOVWF num 
 		     
 		     GOTO back
-			
+	
+
+ ; here we approve the number of the unit then return it back to the call function 	    
+	
 unit_digit:
 
 			BSF finish_getting ,0 
 			
-			CALL ClearLCD       ; Clear the LCD
+			CALL ClearLCD       ; Clear the LCD because we finish getting the tenth and the unit , and be ready to next number.
 			
 			BANKSEL PORTD
 			
 			
 			MOVLW	D'5'	
 			CALL delayXsec
-			
-			
-			; To check if the flag is cleared
-			;btfsc number_2, 0 ; Bit Test File and Skip if Clear
-			;goto print_equal        ; Branch to the first_digit_set_curser label if MY_FLAG is clear
 			
 			
 			
@@ -613,7 +644,7 @@ get_number:
 
 		cursor_tenth_digit:
 		
-		MOVfW num
+		MOVfW num ; put defult value for first click which is zero 
 		BSF Select, RS
 	        CALL send
 		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -628,7 +659,7 @@ get_number:
 		CALL delayXsec
 	       
 		BTFSS INTCON, INTF  ; is the button clicked before 2 seconds ? 
-		GOTO check_digit_flag  ;  NO ! then jumb to check_digit_flag
+		GOTO check_digit_flag  ;  NO ! then jumb to check_digit_flag , we approve the number
 		
 		INCF num,F  ; Yes ! then increament the value of num and continue 
 	      
@@ -660,26 +691,22 @@ get_number:
 SEND_DATA:
 	  	 	  
 	  BANKSEL TRISC
-	  MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (1)
+	  MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (0)
 	  MOVWF   TRISC
 	  
 	  BANKSEL PORTC
 	  
 	  ; Output the high nybble (3) to PORTC
 	  MOVF    code_to_send, W    ; Move temp_code back to W
-	  
-	  MOVWF debugg
-	   
-	  ANDLW   0xF0            ; Isolate the high nybble (now W = 0x30)
-	  
-	  MOVWF debugg
+	  	   
+	  ANDLW   0xF0            ; remove the low nibble. 
 	  
 	  MOVWF   PORTC           ; Output high nybble to PORTC
 	  
 	  BANKSEL PORTB
 	  BSF PORTB,1 ; signaling the slave. 
 	  
-	  MOVLW	D'5'	
+	  MOVLW	D'1'	
 	  CALL delayXsec
 	
 	 
@@ -691,10 +718,8 @@ SEND_DATA:
 	  SWAPF   code_to_send           ; Swap nybbles (now W = 0x13)
 	  
 	  MOVF code_to_send ,w
-	  ANDLW   0xF0     
-	  ; Isolate the new high nybble, which is the original low nybble (now W = 0x10)
-	  MOVWF debugg
-	  MOVWF   PORTC           ; Output low nybble to PORTC
+	  ANDLW   0xF0     ;remove the low
+	  MOVWF   PORTC      ; Output low nybble to PORTC
 	  
 	  wait_until_slave_done:
 	  
@@ -715,154 +740,13 @@ SEND_DATA:
 	  
     RETURN	       
 
-    
-tenth_x_num1: 
 
-	    
-	     ;;;;;;;;;convert the value to hex ;;;;;;;;;;;;;
-			 
-			 
-			 movf num_tenth_digit,w 
-			 call funtion_to_get_value_of_hex
-			 movf temp , w 
-			 movwf num_tenth_digit
-			 
-			  movf num_unit_digit,w 
-			 call funtion_to_get_value_of_hex
-			 movf temp , w 
-			 movwf num_unit_digit
-			 
-			 
-			 movf num2_tenth_digit,w 
-			 call funtion_to_get_value_of_hex
-			 movf temp , w 
-			 movwf num2_tenth_digit
-			 
-			 
-		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-		
-			   MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
-			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
-			   goto it_zero
-		
-			  MOVLW 0x0A       ; Load constant 10 into W
-			  
-			
-			 ; Perform the multiplication using a loop
-			  multiply_loop:
-			  ADDWF result, F ; Add num to the result
-
-			  ; Decrease the loop counter (you might need to adjust the count based on your specific requirements)
-			  DECFSZ num_tenth_digit, F   ; Decrease num and skip if zero
-			  GOTO multiply_loop ; Continue the loop if num is not zero
-			  
-			  movf num_unit_digit,w 
-			  
-			  ADDWF result , w 
-			  
-			  MOVWF result
-			
-	
-		it_zero: 
-			 movf num2_tenth_digit , w 
-			 MOVWF counter    ; Move W to counter for loop control
-			 
-			 MOVF  result, W  
-			 MOVWF multiplicand ; Store the multiplicand
-			  
-	               call multiply_loop2 ; first argument is counter "3" x "num" return in hex 
-		    
-		
-		RETURN
-
-		
-save_data_of_tenth:
-		    MOVF result_low ,w 
-		    MOVWF low_significant_digits_master
-		    
-		    MOVF result_high ,w 
-		    MOVWF most_significant_digits_master
-		    BCF multi_flag, 0  ; rest the flag
-		    
-		  
-		     
-
-multiply_loop2:
-
-	    MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
-	    BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
-	    goto counter0 
-			   
-	     ; Add multiplicand to result_low, consider carry to result_high
-	     MOVF multiplicand, W    ; Get multiplicand
-	     ADDWF result_low, F     ; Add to result_low
-	     BTFSC STATUS, C         ; Check if there was a carry
-	     INCF result_high, F     ; Increment result_high if carry occurred
-
-	     DECF counter, F         ; Decrement the counter
-	     MOVF counter, W         ; Check if counter is zero
-	     BZ end_multiply         ; If zero, multiplication is done
-	     GOTO multiply_loop2      ; Else, continue loop
-
-end_multiply:
-	       RETURN 
-
-	       
-counter0:
-	 clrf result_low
-	 clrf result_high
-	 goto end_multiply
-	 
-
-multi_hex_by_10:    
-    ; Clear result registers
-    CLRF    result_low_2
-    CLRF    result_high_2
-
-    ; Set multiplier (10) in the temp register
-    MOVLW   0x0A
-    MOVWF   temp
-
-    ; Multiply
-    MOVF    temp, W        ; Move the multiplier to W
-    MOVWF   counter              ; Initialize the counter with the multiplier
-
-MULTIPLY_LOOP:
-    MOVF    low_byte, W  ; Move the low byte of multiplicand to W
-    ADDWF   result_low_2, F       ; Add it to the low byte of the product
-    BTFSC   STATUS, C            ; Check if there was a carry
-    INCF    result_high_2, F      ; If so, increment the high byte of the product
-
-    MOVF    high_byte, W ; Move the high byte of multiplicand to W
-    ADDWF   result_high_2, F      ; Add it to the high byte of the product
-
-    DECFSZ  counter, F           ; Decrement the counter
-    GOTO    MULTIPLY_LOOP        ; Repeat the loop if counter is not zero
-
-    ; The result is now in product_high:product_low
+  ; here we recive the multiplication from the slave (co processer ) 
   
-        return             ; Return from function
-	
-         
-
-AddHexValues:
-    MOVF    low_significant_digits_slave , W      ; Get second low byte
-    ADDWF   low_significant_digits_master, W       ; Add to first low byte
-    MOVWF   final_result_low         ; Store result in result_low
-    BTFSC   STATUS, C          ; Check for carry from low byte addition
-    INCF    most_significant_digits_slave, F     ; Increment second high byte if carry occurred
-
-    MOVF    most_significant_digits_slave, W     ; Get second high byte
-    ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
-    MOVWF   final_result_high        ; Store result in result_high
-  
-    RETURN
-    
-	 
 RECEIVE_DATA:
 
 	     BANKSEL TRISC
-	     MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (1)
+	     MOVLW   0x0F    ; Set lower 4 bits as input (1) and upper 4 bits output (0)
 	     MOVWF   TRISC
 	  
 	     BANKSEL PORTC
@@ -870,7 +754,7 @@ RECEIVE_DATA:
 	     MOVF    PORTC, W       ; Read PORTC
 	 
 	     ; 0x6E
-	     ; 0x06 w
+	     ; 0x06 
 	     ; 0x06
 	     ; 0x60
 	     
@@ -884,13 +768,13 @@ RECEIVE_DATA:
 	      
 	  	     		     
 	     	     	  	    				    
-	      MOVLW	D'5'	
+	      MOVLW	D'1'	
 	      CALL delayXsec
 	     
-	      MOVLW	D'5'	
+	      MOVLW	D'1'	
 	      CALL delayXsec
 	
-	      MOVLW	D'5'	
+	      MOVLW	D'1'	
 	      CALL delayXsec
 	
 	
@@ -927,12 +811,84 @@ RECEIVE_DATA:
     RETURN
 	     
 	    
+ 
+;;;;;;;;;;;;;;;;;;;;;; master multiply tenth with num 1 while slave work ;;;;;;;;;;;;;;;;;
+ 
+ ; this function just work when all the num1 and num2 are sent to slave.
+ 
+tenth_x_num1: 
+
+	    
+	       ;;;;;;;;;convert ascii code which we get to it's  value of hex ;;;;;;;;;;;;;
+			 
+			 ;exampe -> input  0x34  ->  output 0x04
+			 
+			 movf num_tenth_digit,w  ; it soterd in ascii here for example 0x34 , in decemal '4' 
+			 call funtion_to_get_value_of_hex  ;; converting to it's hex -> 0x04 
+			 movf temp , w 
+			 movwf num_tenth_digit
+			 
+			  movf num_unit_digit,w 
+			 call funtion_to_get_value_of_hex
+			 movf temp , w 
+			 movwf num_unit_digit
+			 
+			 
+			 movf num2_tenth_digit,w 
+			 call funtion_to_get_value_of_hex
+			 movf temp , w 
+			 movwf num2_tenth_digit
+			 
+			 
+		;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+		
+		
+		
+		   ; this function it convert the decemal value of the num1 to it's mapped value of hex. 
+		   ; exmple -> value in reg1 (tenth)  reg2 (5)  -> 0x01 , 0x05  in decmal "15" then output -> hex value 0x0F  reg result  .
+		
+			  MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
+			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+			  goto it_zero
+		
+			  MOVLW 0x0A       ; Load constant 10 into W
+			  
+			 ; Perform the multiplication using a loop
+			  multiply_loop:
+			  ADDWF result, F ; Add num to the result
+
+			  ; Decrease the loop counter (you might need to adjust the count based on your specific requirements)
+			  DECFSZ num_tenth_digit, F   ; Decrease num and skip if zero
+			  GOTO multiply_loop ; Continue the loop if num is not zero
+			  
+			  movf num_unit_digit,w 
+			  
+			  ADDWF result , w 
+			  
+			  MOVWF result ; here the value of number1 in  exmaple hex 0x0F
+		
 	
+		 it_zero:  
+			
+			;here we prepare for mulitplication , counter the value of tenth digit num2 , multiplicand the vlaue of hex num1
+			
+			 movf num2_tenth_digit , w 
+			 MOVWF counter    ; Move W to counter for loop control
+			 
+			 MOVF  result, W  
+			 MOVWF multiplicand ; Store the multiplicand
+			  
+	               call multiply_loop2 ; first argument is counter "3" x "num" return in hex 
+		
 
+		
+		
+		RETURN
+
+    
+    
+  ; remove the 3 part from the value from registor , and keep the num in decimal 
   
-
-    
-    
 funtion_to_get_value_of_hex: 
 			     MOVWF temp
 			     ANDLW 0x0F
@@ -940,9 +896,104 @@ funtion_to_get_value_of_hex:
 			     RETURN
 			         
 	 
- 
- 
- 
+ 		
+	
+; here we save the mulitiplication of the first number * tenth of  second  number	
+save_data_of_tenth:
+		    MOVF result_low ,w 
+		    MOVWF low_significant_digits_master
+		    
+		    MOVF result_high ,w 
+		    MOVWF most_significant_digits_master
+		    BCF multi_flag, 0  ; rest the flag
+		    
+		  
+		     
+; counter is the tenth part of the second number , multiplicand is num 1 then we find the multiplication result in result low and result_high.
+; we add the first number by counter times . 
+multiply_loop2:
+
+	    MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
+	    
+	    BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+	    goto counter0 
+			   
+	     ; Add multiplicand to result_low, consider carry to result_high
+	     MOVF multiplicand, W    ; Get multiplicand
+	     ADDWF result_low, F     ; Add to result_low
+	     BTFSC STATUS, C         ; Check if there was a carry
+	     INCF result_high, F     ; Increment result_high if carry occurred
+
+	     DECF counter, F         ; Decrement the counter
+	     MOVF counter, W         ; Check if counter is zero
+	     BZ end_multiply         ; If zero, multiplication is done
+	     GOTO multiply_loop2      ; Else, continue loop
+
+end_multiply:
+	       RETURN 
+
+
+; handel when the value of tenth of number 2 is zero. 	       
+counter0:
+	 clrf result_low
+	 clrf result_high
+	 goto end_multiply
+	 
+
+	 
+	 
+; here we multiply the result from ( tenth * num) * 10	 
+
+multi_hex_by_10:    
+    ; Clear result registers
+    CLRF    result_low_2
+    CLRF    result_high_2
+
+    ; Set multiplier (10) in the temp register
+    MOVLW   0x0A
+    MOVWF   temp
+
+    ; Multiply
+    MOVF    temp, W        ; Move the multiplier to W
+    MOVWF   counter              ; Initialize the counter with the multiplier
+
+MULTIPLY_LOOP:
+    MOVF    low_byte, W  ; Move the low byte of multiplicand to W
+    ADDWF   result_low_2, F       ; Add it to the low byte of the product
+    BTFSC   STATUS, C            ; Check if there was a carry
+    INCF    result_high_2, F      ; If so, increment the high byte of the product
+
+    MOVF    high_byte, W ; Move the high byte of multiplicand to W
+    ADDWF   result_high_2, F      ; Add it to the high byte of the product
+
+    DECFSZ  counter, F           ; Decrement the counter
+    GOTO    MULTIPLY_LOOP        ; Repeat the loop if counter is not zero
+
+    ; The result is now in product_high:product_low
+  
+        return             ; Return from function
+	
+         
+; here we find the final result of slave mutiplication and master , and store them in two regsieters final_result_high ,final_result_low. 
+
+AddHexValues:
+    MOVF    low_significant_digits_slave , W      ; Get second low byte
+    ADDWF   low_significant_digits_master, W       ; Add to first low byte
+    MOVWF   final_result_low         ; Store result in result_low
+    BTFSC   STATUS, C          ; Check for carry from low byte addition
+    INCF    most_significant_digits_slave, F     ; Increment second high byte if carry occurred
+
+    MOVF    most_significant_digits_slave, W     ; Get second high byte
+    ADDWF   most_significant_digits_master, W      ; Add to first high byte, including any carry from low bytes
+    MOVWF   final_result_high        ; Store result in result_high
+  
+    RETURN
+    
+
+
+   
+  ; here we take each digit of the final result of multiplication  to display on lcd .
+  
  get_result_on_lcd:
 	     ; Convert high_byte to two ASCII characters
 	     MOVF    high_byte, W
@@ -964,13 +1015,12 @@ funtion_to_get_value_of_hex:
 
   
 
+  ; here we take the right value of acsii code of the result digits. 
 ConvertToASCII:
-  
-		 
+  		 
 		ANDLW   0x0F 
 		movwf temp
-		 
-		 
+		 		 
 		MOVLW   0x09            ; Load 0x09 into W
 		 
 		SUBWF   temp , W        ; Subtract 0x09 from 'value', result in W
