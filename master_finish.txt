@@ -5,46 +5,49 @@ __CONFIG 0x3731
 
 
 
-Char EQU 0x25
-DelayCount EQU 0x31
+Char EQU 0x20
+DelayCount EQU 0x21
 
 ; Define a register to store the value of num
-blink3 EQU 0x20 ; Choose an available register, adjust as needed
-BlinkCount  EQU 0x32 ; Counter for blink iterations
-digit_flag  EQU 0x34 ; Counter for blink iterations
+blink3 EQU 0x22 ; Choose an available register, adjust as needed
+BlinkCount  EQU 0x23 ; Counter for blink iterations
+digit_flag  EQU 0x24 ; Counter for blink iterations
 
 
-num_tenth_digit EQU 0x26
-num_unit_digit  EQU 0x35 ; Counter for blink iterations
-num EQU 0x36
-temp EQU 0x37
+num_tenth_digit EQU 0x25
+num_unit_digit  EQU 0x26 ; Counter for blink iterations
+num EQU 0x27
+temp EQU 0x28
 
-num2_tenth_digit EQU 0x38
-num2_unit_digit EQU 0x39
-finish_getting EQU 0x56 
-
-temp_code EQU 0x40
-code_to_send EQU 0x41
+num2_tenth_digit EQU 0x29
+num2_unit_digit EQU 0x30
 
 
-debugg EQU 0x43
+digit1 EQU 0x31 ; Equivalent of 'first' in ASCII
+digit2 EQU 0x32 ; Equivalent of 'seond' in ASCII, assuming a typo in the original pattern
+digit3 EQU 0x33 ; Equivalent of 'third' in ASCII, adjusting based on pattern context
+digit4 EQU 0x34 ; Equivalent of 'fourth' in ASCII
 
- 
+
+ code_to_send EQU 0x41
+ debugg EQU 0x42
  counter EQU 0x44
  multiplicand EQU 0x45
  result_high  EQU 0x46
  result_low   EQU 0x47
  result      EQU 0x48
- 
  multi_flag EQU 0x49
  
 high_nibble   EQU 0x50
 low_nibble    EQU 0x51
 full_byte     EQU 0x52
-
+ 
 most_significant_digits_slave EQU 0x53
 low_significant_digits_slave  EQU 0x54
 
+finish_getting EQU 0x55
+ temp_code EQU 0x56
+ 
 most_significant_digits_master  EQU 0x58
  low_significant_digits_master   EQU 0x59
  
@@ -269,10 +272,91 @@ ISR:
 		  MOVWF low_significant_digits_master
 		  
 		  CALL    AddHexValues
-		  
-
-		  
+		 
 		 call print_equal ; this print "=" 
+		 
+		     ; Initialize hexadecimal value (for example, 0x2A49)
+		  MOVf final_result_high, w
+		  MOVWF   high_byte
+		  MOVf   final_result_low ,w
+		  MOVWF   low_byte
+		  
+		  call get_result_on_lcd 
+		  
+		  
+		  
+	      call result_print
+	      
+	      	MOVLW	D'5'	
+               CALL delayXsec
+						
+	     
+		  
+		  
+		movf digit1 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf digit2 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf digit3 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf digit4 ,w
+		BSF Select, RS
+		CALL send
+		
+		
+		 MOVLW 0x20
+		BSF Select, RS
+		CALL send
+				
+		
+		MOVLW 'H'
+		BSF Select, RS
+		CALL send
+			
+	        MOVLW 'E'
+		BSF Select, RS
+		CALL send
+			
+	        MOVLW 'X'
+		BSF Select, RS
+		CALL send
+		
+		  MOVLW 0x20
+		BSF Select, RS
+		CALL send
+					
+		MOVLW 'V'
+		BSF Select, RS
+		CALL send
+			
+
+		MOVLW 'A'
+		BSF Select, RS
+		CALL send
+			
+		MOVLW 'L'
+		BSF Select, RS
+		CALL send
+		
+		MOVLW 'U'
+		BSF Select, RS
+		CALL send
+			
+		MOVLW 'E'
+		BSF Select, RS
+		CALL send
+		
+		
+		
+		
+		
+
 		 
 ; END TASK
 
@@ -479,8 +563,6 @@ tenth_digit:
 		     
 		     GOTO back
 			
-			 
-	    
 unit_digit:
 
 			BSF finish_getting ,0 
@@ -508,7 +590,6 @@ unit_digit:
 			MOVWF num ; return the value for call 
 			 
 			GOTO back
-
 		
 
 			
@@ -845,6 +926,64 @@ funtion_to_get_value_of_hex:
  
  
  
+ get_result_on_lcd:
+	     ; Convert high_byte to two ASCII characters
+	     MOVF    high_byte, W
+	     CALL    ConvertToASCII
+	     MOVWF   digit2               ; Store first ASCII digit
+	     SWAPF   high_byte, W
+	     CALL    ConvertToASCII
+	     MOVWF   digit1             ; Store second ASCII digit
+
+	     ; Convert low_byte to two ASCII characters
+	     MOVF    low_byte, W
+	     CALL    ConvertToASCII
+	     MOVWF   digit4            ; Store third ASCII digit
+	     SWAPF   low_byte, W
+	     CALL    ConvertToASCII
+	     MOVWF   digit3              ; Store fourth ASCII digit
+
+	     ; Continue with the rest of the program...
+
+  
+
+ConvertToASCII:
+  
+		 
+		ANDLW   0x0F 
+		movwf temp
+		 
+		 
+		MOVLW   0x09            ; Load 0x09 into W
+		 
+		SUBWF   temp , W        ; Subtract 0x09 from 'value', result in W
+		
+		BTFSC   STATUS, Z           ; Check if the result is zero
+		MOVLW   0x39                ; If zero, prepare '9' ASCII to return
+		
+		BTFSC   STATUS, Z  
+		  goto done
+		  
+		BTFSC   STATUS, C       ; Check for borrow (negative result)  
+		goto handel_AF
+		 
+		
+
+		movf temp,w 
+		            ; Isolate a single hex digit.
+		ADDLW   0x30                ; Initially add ASCII value of '0' to convert 0-9 to ASCII.
+		
+		RETURN
+
+		handel_AF:
+		movf temp,w 
+		
+		ADDLW   0x37                ; Adjust for ASCII 'A' to 'F' if necessary.
+		
+	done: 	
+
+    RETURN
+ 
 display_number_2:
 				
 				
@@ -1090,20 +1229,61 @@ print_equal:
 		    CALL delayXsec 
 			
 			CALL ClearLCD       ; Clear the LCD
-
-			MOVLW 0x3D          ; ascii for "=" char
+			
+			MOVLW 0x3D
 			BSF Select, RS
 			CALL send
-			
 
 		        MOVLW	D'10'	; delay 2 seconds
 			CALL delayXsec   
 
-			CALL ClearLCD       ; Clear the LCD
-
+				BCF 	Select, RS
+			MOVLW 	0xC0 ; second row
+			CALL 	send
+			
+			
+		
 			RETURN  ; return to the main 
 
 
+			
+result_print: 
+	     
+	              CALL ClearLCD       ; Clear the LCD
+	     
+	     		MOVLW 'R'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'E'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'S'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'U'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'L'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 'T'
+			BSF Select, RS
+			CALL send
+			
+			MOVLW 0x20
+			BSF Select, RS
+			CALL send
+			
+			BCF 	Select, RS
+			MOVLW 	0xC0 ; second row
+			CALL 	send
+		
+	RETURN	
 
 END
 
