@@ -392,15 +392,19 @@ goback_again:
 	  
 	go_to_reset: 
 	
-	 bcf finish_getting, 0 ; rest the flag to use it again in future . 
-	 bcf multi_flag ,0
-	 bcf temp_code, 0
-	 bcf temp2 ,0 
-	 bcf multiplicand ,0 
-	 bcf counter,0
-	 bcf digit_flag,0
-	 bcf DelayCount ,0
-	 bcf  temp_code ,0 
+	 clrf finish_getting ; rest the flag to use it again in future . 
+	 clrf multi_flag 
+	 clrf temp_code
+	 clrf temp2 
+	 clrf multiplicand 
+	 clrf counter
+	 clrf digit_flag
+	 clrf DelayCount 
+	 clrf  temp_code 
+	 clrf  low_significant_digits_slave
+	 clrf  low_significant_digits_master
+	 clrf  most_significant_digits_slave
+	 clrf most_significant_digits_master
 
 	 goto goback_again
 	     
@@ -852,7 +856,11 @@ tenth_x_num1:
 		
 		   ; this function it convert the decemal value of the num1 to it's mapped value of hex. 
 		   ; exmple -> value in reg1 (tenth)  reg2 (5)  -> 0x01 , 0x05  in decmal "15" then output -> hex value 0x0F  reg result  .
-		
+			
+			  CLRF  result 
+			  clrf result_low
+	                  clrf result_high
+			    
 			  MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
 			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
 			  goto it_zero
@@ -917,8 +925,7 @@ save_data_of_tenth:
 		     
 ; counter is the tenth part of the second number , multiplicand is num 1 then we find the multiplication result in result low and result_high.
 ; we add the first number by counter times . 
-multiply_loop2:
-
+multiply_loop2:  
 	    MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
 	    
 	    BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
