@@ -271,6 +271,7 @@ RECEIVE_DATA2:
 	 
 	    
 	   CALL    Delay1Sec 
+	 
 	   
 	   BANKSEL PORTB 
 	   BSF  PORTB ,2  ; return the value of RB2 to it defult to use it again .  
@@ -398,6 +399,9 @@ end_multiply:
 	    BANKSEL PORTB
 	    BSF PORTB,2 ; rest portb2 to make the master able to wait the low bits 
 	    
+	    bcf flag_num1_done ,0
+	    
+	    goto start
 	    
 	    RETURN
     

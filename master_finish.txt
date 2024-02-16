@@ -911,6 +911,7 @@ save_data_of_tenth:
 		    MOVF result_high ,w 
 		    MOVWF most_significant_digits_master
 		    BCF multi_flag, 0  ; rest the flag
+		    return
 		    
 		  
 		     
@@ -1358,5 +1359,4 @@ result_print:
 	RETURN	
 
 END
-
 
