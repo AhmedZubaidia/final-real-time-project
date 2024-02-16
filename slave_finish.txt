@@ -6,9 +6,8 @@ __CONFIG 0x3731
 
 
 
-Char EQU 0x25
+Char EQU 0x29
 DelayCount EQU 0x30 ; General-purpose register for delay count
-
 
 high_nibble   EQU 0x40 ; used in send and recive 
 low_nibble    EQU 0x41  ; used in send and recive 
@@ -35,7 +34,21 @@ temp EQU 0x48 ; uesd in diffrent function
   
 code_to_send  EQU 0x58 ; used in send data.
 
+digit2_high EQU 0x60
+digit1_high EQU 0x61
+digit2_low EQU 0x62
+digit1_low EQU 0x63
+result1 EQU 0x64
+result2 EQU 0x65
+result3 EQU 0x66
+result4 EQU 0x67
+TEMP EQU 0x68
+carry_reg EQU 0x69
 
+HIGH1 EQU 0x21
+LOW1  EQU 0x22
+
+ 
 
 ; Begin the program at the reset vector.
 ORG 0x00
@@ -51,6 +64,9 @@ init:
     BSF INTCON, GIE ; Global interrupt enable
     BSF INTCON, INTE ; Enable RB0 interrupt
 
+  
+    
+   
     
     BANKSEL TRISD ;
     CLRF TRISD ; Set PORTD as output for LCD
@@ -271,7 +287,6 @@ RECEIVE_DATA2:
 	 
 	    
 	   CALL    Delay1Sec 
-	 
 	   
 	   BANKSEL PORTB 
 	   BSF  PORTB ,2  ; return the value of RB2 to it defult to use it again .  
@@ -314,8 +329,10 @@ choose_which_recive:
 send_to_multiplicaition:
 				
 			
-			  CLRF  result  
 			
+			  MOVF    num1_unit_hex, W  ; Move the value of num2_tenth_digit into the W register
+			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
+			  goto it_zero
 			   
 			  MOVLW 0x0A       ; Load constant 10 into W
 
@@ -333,8 +350,9 @@ send_to_multiplicaition:
 			  
 			  MOVWF result
 	
-		
+			it_zero:
 			
+	
 			 movf unit_digit_number2_in_hex , w 
 			 MOVWF counter    ; Move W to counter for loop control
 			 
@@ -396,12 +414,6 @@ end_multiply:
 	    BANKSEL PORTB
 	    BSF PORTB,2 ; rest portb2 to make the master able to wait the low bits 
 	    
-	    bcf flag_num1_done ,0
-	    
-	    clrf result_low
-	    clrf result_high
-	    
-	    goto start
 	    
 	    RETURN
     
@@ -471,8 +483,6 @@ SEND_DATA:
     
           
 printNumber1:
-			
-			CALL ClearLCD 
 			
 			MOVLW 'N'
 			BSF Select, RS
@@ -608,6 +618,7 @@ printNumber2:
 
 RETURN
   
+
 
 
 

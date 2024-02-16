@@ -31,45 +31,60 @@ digit2 EQU 0x32 ; Equivalent of 'seond' in ASCII
 digit3 EQU 0x33 ; Equivalent of 'third' in ASCII 
 digit4 EQU 0x34 ; Equivalent of 'fourth' in ASCII
 
+digit2_high EQU 0x35
+digit1_high EQU 0x36
+digit2_low EQU 0x37
+digit1_low EQU 0x38
+
+result1 EQU 0x39
+result2 EQU 0x40
+
+
+
 
  code_to_send EQU 0x41 ; send recive purpose 
  
- counter EQU 0x44 ; used in multiplication 
- multiplicand EQU 0x45; used in multiplication 
+ counter EQU 0x42 ; used in multiplication 
+ multiplicand EQU 0x43; used in multiplication 
  
- result_high  EQU 0x46 ; get final result for tenth x num1
- result_low   EQU 0x47 ; get final result for tenth x num1
- result      EQU 0x48 ; ; used in multiplication 
+ result_high  EQU 0x44 ; get final result for tenth x num1
+ result_low   EQU 0x45 ; get final result for tenth x num1
+ result      EQU 0x46 ; ; used in multiplication 
  
- multi_flag EQU 0x49 ; make the multiplication function work while waiting the slave to finish
+ multi_flag EQU 0x47 ; make the multiplication function work while waiting the slave to finish
  
  
-high_nibble   EQU 0x50 ; send recive purpose 
-low_nibble    EQU 0x51 ; send recive purpose 
-full_byte     EQU 0x52 ; send recive purpose 
+high_nibble   EQU 0x48 ; send recive purpose 
+low_nibble    EQU 0x49 ; send recive purpose 
+full_byte     EQU 0x50 ; send recive purpose 
  
-most_significant_digits_slave EQU 0x53 ; used to save multipcation  
-low_significant_digits_slave  EQU 0x54 ; used to save multipcation  
+most_significant_digits_slave EQU 0x51 ; used to save multipcation  
+low_significant_digits_slave  EQU 0x52 ; used to save multipcation  
  
-finish_getting EQU 0x55 ; used in sycnro 
- temp_code EQU 0x56 ;  used 
+finish_getting EQU 0x53 ; used in sycnro 
+ temp_code EQU 0x54 ;  used 
  
-most_significant_digits_master  EQU 0x58 ;   
-low_significant_digits_master   EQU 0x59 ;
+most_significant_digits_master  EQU 0x55 ;   
+low_significant_digits_master   EQU 0x56 ;
  
 
  ; Define register aliases
-high_byte   EQU     0x60     ; Assume 0x01 is stored in this register
-low_byte    EQU     0x61     ; Assume 0x5F is stored in this register
-multiplier  EQU     0x62     ; Multiplier value (10 in decimal)
-result_low_2  EQU     0x63     ; Lower byte of the result
-result_high_2 EQU     0x64     ; Higher byte of the result
-temp2        EQU     0x65     ; Temporary storage
+high_byte   EQU     0x57     ; Assume 0x01 is stored in this register
+low_byte    EQU     0x58     ; Assume 0x5F is stored in this register
+multiplier  EQU     0x59     ; Multiplier value (10 in decimal)
+result_low_2  EQU     0x60     ; Lower byte of the result
+result_high_2 EQU     0x61     ; Higher byte of the result
 
-final_result_high EQU     0x66 ; final result of multiplication 
-final_result_low  EQU     0x67 ; final result of multiplication 
+final_result_high EQU     0x63 ; final result of multiplication 
+final_result_low  EQU     0x64 ; final result of multiplication 
  
+result3 EQU 0x65
+result4 EQU 0x66
+TEMP EQU 0x67
+carry_reg EQU 0x68
 
+HIGH1 EQU 0x69
+LOW1  EQU 0x62
 ; The instructions should start from here
 ORG 0x00
 GOTO init
@@ -379,6 +394,140 @@ goback_again:
 		BSF Select, RS
 		CALL send
 		
+		
+		
+		movf digit1 ,w
+		ANDLW 0x0F
+		MOVWF digit1
+		
+		movf digit2 ,w
+		ANDLW 0x0F
+		MOVWF digit2
+		
+		
+		movf digit3 ,w
+		ANDLW 0x0F
+		MOVWF digit3
+		
+		
+		movf digit4 ,w
+		ANDLW 0x0F
+		MOVWF digit4
+		
+            
+	     
+	        MOVLW 0x40
+		MOVWF HIGH1
+	       
+		MOVLW 0x96
+		MOVWF LOW1
+	     
+	     
+		movf digit1 ,w
+		MOVWF counter
+
+		
+	     call convert_to_decemal
+		
+		MOVLW 0x02
+		MOVWF HIGH1
+	       
+		MOVLW 0x56
+		MOVWF LOW1
+	     
+		movf digit2 ,w
+		MOVWF counter
+		
+		call convert_to_decemal
+		
+		MOVLW 0x00
+		MOVWF HIGH1
+	       
+		MOVLW 0x16
+		MOVWF LOW1
+	     
+		movf digit3 ,w
+		MOVWF counter
+		
+		
+	       call convert_to_decemal
+		
+		MOVLW 0x00
+		MOVWF HIGH1
+	       
+		MOVLW 0x01
+		MOVWF LOW1
+	     
+		movf digit4 ,w
+		MOVWF counter	
+		call convert_to_decemal
+		
+		MOVF result1 ,W
+		ADDLW 0x30
+		MOVWF  result1
+		
+	        MOVF result2 ,W
+		ADDLW 0x30
+		MOVWF  result2
+		
+		MOVF result3 ,W
+		ADDLW 0x30
+		MOVWF  result3
+		
+		MOVF result4 ,W
+		ADDLW 0x30
+		MOVWF  result4
+		
+		 
+		
+	       MOVLW	D'15'	
+               CALL delayXsec
+	       
+	        CALL ClearLCD       ; Clear the LCD
+		
+		call result_print
+		
+		movf result4 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf result3 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf result2 ,w
+		BSF Select, RS
+		CALL send
+		
+		movf result1 ,w
+		BSF Select, RS
+		CALL send
+		
+		
+		 MOVLW 0x20
+		BSF Select, RS
+		CALL send
+				
+		
+		MOVLW 'D'
+		BSF Select, RS
+		CALL send
+			
+	        MOVLW 'E'
+		BSF Select, RS
+		CALL send
+			
+	        MOVLW 'C'
+		BSF Select, RS
+		CALL send
+		
+		  MOVLW 0x20
+		BSF Select, RS
+		CALL send
+					
+			
+			
+			    
 	
 	 bcf INTCON, INTF ; rest button flag.
 	 
@@ -392,19 +541,14 @@ goback_again:
 	  
 	go_to_reset: 
 	
-	 clrf finish_getting ; rest the flag to use it again in future . 
-	 clrf multi_flag 
-	 clrf temp_code
-	 clrf temp2 
-	 clrf multiplicand 
-	 clrf counter
-	 clrf digit_flag
-	 clrf DelayCount 
-	 clrf  temp_code 
-	 clrf  low_significant_digits_slave
-	 clrf  low_significant_digits_master
-	 clrf  most_significant_digits_slave
-	 clrf most_significant_digits_master
+	 bcf finish_getting, 0 ; rest the flag to use it again in future . 
+	 bcf multi_flag ,0
+	 bcf temp_code, 0
+	 bcf multiplicand ,0 
+	 bcf counter,0
+	 bcf digit_flag,0
+	 bcf DelayCount ,0
+	 bcf  temp_code ,0 
 
 	 goto goback_again
 	     
@@ -856,11 +1000,7 @@ tenth_x_num1:
 		
 		   ; this function it convert the decemal value of the num1 to it's mapped value of hex. 
 		   ; exmple -> value in reg1 (tenth)  reg2 (5)  -> 0x01 , 0x05  in decmal "15" then output -> hex value 0x0F  reg result  .
-			
-			  CLRF  result 
-			  clrf result_low
-	                  clrf result_high
-			    
+		
 			  MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
 			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
 			  goto it_zero
@@ -919,13 +1059,13 @@ save_data_of_tenth:
 		    MOVF result_high ,w 
 		    MOVWF most_significant_digits_master
 		    BCF multi_flag, 0  ; rest the flag
-		    return
 		    
 		  
 		     
 ; counter is the tenth part of the second number , multiplicand is num 1 then we find the multiplication result in result low and result_high.
 ; we add the first number by counter times . 
-multiply_loop2:  
+multiply_loop2:
+
 	    MOVF    counter, W  ; Move the value of num2_tenth_digit into the W register
 	    
 	    BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
@@ -1063,7 +1203,98 @@ ConvertToASCII:
 	done: 	
 
     RETURN
+
  
+convert_to_decemal: 
+ ; Initialize values for HIGH1:LOW1 and HIGH2:LOW2 to 0x4096
+
+
+
+
+; Isolate and store digits for HIGH1:LOW1
+movf LOW1, w
+andlw 0x0F
+movwf digit1_low 
+
+movf LOW1, w
+andlw 0xF0
+movwf digit2_low
+SWAPF digit2_low
+
+movf HIGH1, w
+andlw 0x0F
+movwf digit1_high
+
+movf HIGH1, w
+andlw 0xF0
+movwf digit2_high
+SWAPF digit2_high
+
+
+looop:
+
+; Adjust for BCD addition
+; Add digit1 and digit1_low2
+movf digit1_low, w
+addwf result1 , w
+movwf TEMP         ; Move result to TEMP
+call AdjustForBCD
+movwf result1
+
+; Add digit2 and digit2_low2
+movf digit2_low, w
+addwf carry_reg , w
+clrf carry_reg
+addwf result2 , w
+movwf TEMP         ; Move result to TEMP
+call AdjustForBCD
+movwf result2
+
+; Add digit1_high and digit1_high2
+movf digit1_high, w
+addwf carry_reg , w
+clrf carry_reg
+addwf result3 , w
+movwf TEMP         ; Move result to TEMP
+call AdjustForBCD
+movwf result3
+
+; Add digit2_high and digit2_high2
+movf digit2_high, w
+addwf carry_reg , w
+clrf carry_reg
+addwf result4 , w
+movwf TEMP         ; Move result to TEMP
+call AdjustForBCD
+movwf result4
+
+
+
+
+DECFSZ counter, f   ; Decrement counter and skip if zero
+GOTO looop           ; If counter is not zero, repeat the loop
+
+return 
+
+
+AdjustForBCD:
+    sublw 0x09         ; Compare with 9
+    movf TEMP , w
+    BTFSS   STATUS, C       ; Check for borrow (negative result)  
+    addlw 0x06         ; Else, add 6 for BCD adjustment
+    movwf temp   
+    
+    BTFSS   STATUS, C       ; Check for borrow (negative result) 
+    incf carry_reg
+    
+     
+    andlw 0x0F
+    movwf temp
+    
+NoAdjust:
+    return 
+   
+   
 display_number_2:
 				
 				
