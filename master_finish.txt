@@ -395,26 +395,7 @@ goback_again:
 		CALL send
 		
 		
-		
-		movf digit1 ,w
-		ANDLW 0x0F
-		MOVWF digit1
-		
-		movf digit2 ,w
-		ANDLW 0x0F
-		MOVWF digit2
-		
-		
-		movf digit3 ,w
-		ANDLW 0x0F
-		MOVWF digit3
-		
-		
-		movf digit4 ,w
-		ANDLW 0x0F
-		MOVWF digit4
-		
-            
+	
 	     
 	        MOVLW 0x40
 		MOVWF HIGH1
@@ -423,9 +404,10 @@ goback_again:
 		MOVWF LOW1
 	     
 	     
-		movf digit1 ,w
+	        movf final_result_high ,w 
+	        ANDLW 0xF0
 		MOVWF counter
-
+		SWAPF counter
 		
 	     call convert_to_decemal
 		
@@ -435,7 +417,8 @@ goback_again:
 		MOVLW 0x56
 		MOVWF LOW1
 	     
-		movf digit2 ,w
+		movf final_result_high ,w 
+	        ANDLW 0x0F
 		MOVWF counter
 		
 		call convert_to_decemal
@@ -446,8 +429,10 @@ goback_again:
 		MOVLW 0x16
 		MOVWF LOW1
 	     
-		movf digit3 ,w
+		movf final_result_low ,w 
+	        ANDLW 0xF0
 		MOVWF counter
+		SWAPF counter
 		
 		
 	       call convert_to_decemal
@@ -458,8 +443,11 @@ goback_again:
 		MOVLW 0x01
 		MOVWF LOW1
 	     
-		movf digit4 ,w
-		MOVWF counter	
+	     
+		movf final_result_low ,w 
+	        ANDLW 0x0F
+		MOVWF counter
+		
 		call convert_to_decemal
 		
 		MOVF result1 ,W
@@ -541,14 +529,25 @@ goback_again:
 	  
 	go_to_reset: 
 	
-	 bcf finish_getting, 0 ; rest the flag to use it again in future . 
-	 bcf multi_flag ,0
-	 bcf temp_code, 0
-	 bcf multiplicand ,0 
-	 bcf counter,0
-	 bcf digit_flag,0
-	 bcf DelayCount ,0
-	 bcf  temp_code ,0 
+	 clrf finish_getting ; rest the flag to use it again in future . 
+	 clrf multi_flag 
+	 clrf temp_code
+	 clrf multiplicand 
+	 clrf counter
+	 clrf digit_flag
+	 clrf DelayCount 
+	 clrf  temp_code 
+	 clrf  low_significant_digits_slave
+	 clrf  low_significant_digits_master
+	 clrf  most_significant_digits_slave
+	 clrf most_significant_digits_master
+	 
+	 
+	 CLRF result1
+	 CLRF result2
+	 CLRF result3
+	 CLRF result4
+	 
 
 	 goto goback_again
 	     
@@ -1000,6 +999,11 @@ tenth_x_num1:
 		
 		   ; this function it convert the decemal value of the num1 to it's mapped value of hex. 
 		   ; exmple -> value in reg1 (tenth)  reg2 (5)  -> 0x01 , 0x05  in decmal "15" then output -> hex value 0x0F  reg result  .
+		   
+		          CLRF  result 
+			  clrf result_low
+	                  clrf result_high
+		   
 		
 			  MOVF    num2_tenth_digit, W  ; Move the value of num2_tenth_digit into the W register
 			  BTFSC   STATUS, Z            ; Test if Zero flag is set (which means num2_tenth_digit is zero)
@@ -1206,73 +1210,75 @@ ConvertToASCII:
 
  
 convert_to_decemal: 
- ; Initialize values for HIGH1:LOW1 and HIGH2:LOW2 to 0x4096
+	  ; Initialize values for HIGH1:LOW1 and HIGH2:LOW2 to 0x4096
+	 
+	 movf counter ,w
+	 BTFSC   STATUS, Z 
+	 return
+	 
+
+	 ; Isolate and store digits for HIGH1:LOW1
+	 movf LOW1, w
+	 andlw 0x0F
+	 movwf digit1_low 
+
+	 movf LOW1, w
+	 andlw 0xF0
+	 movwf digit2_low
+	 SWAPF digit2_low
+
+	 movf HIGH1, w
+	 andlw 0x0F
+	 movwf digit1_high
+
+	 movf HIGH1, w
+	 andlw 0xF0
+	 movwf digit2_high
+	 SWAPF digit2_high
+
+
+	 looop:
+
+	 ; Adjust for BCD addition
+	 ; Add digit1 and digit1_low2
+	 movf digit1_low, w
+	 addwf result1 , w
+	 movwf TEMP         ; Move result to TEMP
+	 call AdjustForBCD
+	 movwf result1
+
+	 ; Add digit2 and digit2_low2
+	 movf digit2_low, w
+	 addwf carry_reg , w
+	 clrf carry_reg
+	 addwf result2 , w
+	 movwf TEMP         ; Move result to TEMP
+	 call AdjustForBCD
+	 movwf result2
+
+	 ; Add digit1_high and digit1_high2
+	 movf digit1_high, w
+	 addwf carry_reg , w
+	 clrf carry_reg
+	 addwf result3 , w
+	 movwf TEMP         ; Move result to TEMP
+	 call AdjustForBCD
+	 movwf result3
+
+	 ; Add digit2_high and digit2_high2
+	 movf digit2_high, w
+	 addwf carry_reg , w
+	 clrf carry_reg
+	 addwf result4 , w
+	 movwf TEMP         ; Move result to TEMP
+	 call AdjustForBCD
+	 movwf result4
 
 
 
 
-; Isolate and store digits for HIGH1:LOW1
-movf LOW1, w
-andlw 0x0F
-movwf digit1_low 
-
-movf LOW1, w
-andlw 0xF0
-movwf digit2_low
-SWAPF digit2_low
-
-movf HIGH1, w
-andlw 0x0F
-movwf digit1_high
-
-movf HIGH1, w
-andlw 0xF0
-movwf digit2_high
-SWAPF digit2_high
-
-
-looop:
-
-; Adjust for BCD addition
-; Add digit1 and digit1_low2
-movf digit1_low, w
-addwf result1 , w
-movwf TEMP         ; Move result to TEMP
-call AdjustForBCD
-movwf result1
-
-; Add digit2 and digit2_low2
-movf digit2_low, w
-addwf carry_reg , w
-clrf carry_reg
-addwf result2 , w
-movwf TEMP         ; Move result to TEMP
-call AdjustForBCD
-movwf result2
-
-; Add digit1_high and digit1_high2
-movf digit1_high, w
-addwf carry_reg , w
-clrf carry_reg
-addwf result3 , w
-movwf TEMP         ; Move result to TEMP
-call AdjustForBCD
-movwf result3
-
-; Add digit2_high and digit2_high2
-movf digit2_high, w
-addwf carry_reg , w
-clrf carry_reg
-addwf result4 , w
-movwf TEMP         ; Move result to TEMP
-call AdjustForBCD
-movwf result4
-
-
-
-
-DECFSZ counter, f   ; Decrement counter and skip if zero
-GOTO looop           ; If counter is not zero, repeat the loop
+	 DECFSZ counter, f   ; Decrement counter and skip if zero
+	 GOTO looop           ; If counter is not zero, repeat the loop
 
 return 
 
